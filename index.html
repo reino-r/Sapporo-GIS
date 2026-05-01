@@ -98,8 +98,18 @@
     crossorigin=""></script>
 
   <script>
+    // ===== Batas area Kota Sapporo (SW dan NE) =====
+    const sapporoBounds = L.latLngBounds(
+      [42.90, 141.00],  // South-West
+      [43.25, 141.70]   // North-East
+    );
+
     // ===== Inisialisasi peta berpusat di Sapporo, Jepang =====
-    const map = L.map('map').setView([43.0621, 141.3544], 13);
+    const map = L.map('map', {
+      preferCanvas: true,          // Render canvas untuk performa GeoJSON besar
+      maxBounds: sapporoBounds,    // Batasi area peta agar tidak keluar Sapporo
+      maxBoundsViscosity: 1.0      // Peta tidak bisa digeser melewati batas sama sekali
+    }).setView([43.0621, 141.3544], 13);
 
     // ===== Basemap OpenStreetMap =====
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -160,7 +170,7 @@
         const geojsonData = await response.json();
 
         // Tambahkan layer GeoJSON ke peta dengan popup untuk setiap fitur
-        L.geoJSON(geojsonData, {
+        const geoLayer = L.geoJSON(geojsonData, {
           // Bind popup berisi tabel seluruh atribut pada setiap fitur
           onEachFeature: function (feature, layer) {
             if (feature.properties) {
@@ -171,6 +181,9 @@
             }
           }
         }).addTo(map);
+
+        // Otomatis zoom & pan ke batas data GeoJSON
+        map.fitBounds(geoLayer.getBounds(), { padding: [50, 50] });
 
         console.log('GeoJSON berhasil dimuat.');
 
