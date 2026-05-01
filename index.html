@@ -4,102 +4,806 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebGIS Sapporo</title>
+  <title>WebGIS Interaktif Sapporo</title>
+  <meta name="description"
+    content="WebGIS interaktif kota Sapporo, Jepang — menampilkan amenities, buildings, nature, transport, roads, POI, dan lainnya.">
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
+    /* ===== Reset ===== */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    body,
-    html {
+    html,
+    body {
+      width: 100%;
       height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
     }
 
+    /* ===== Peta Full Screen ===== */
     #map {
       width: 100%;
       height: 100vh;
     }
 
+    /* ===== Control Panel ===== */
+    .control-panel {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 0;
+      min-width: 240px;
+      max-width: 280px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      color: #e2e8f0;
+      font-size: 13px;
+      overflow: hidden;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .control-panel.collapsed {
+      max-height: 44px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .panel-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: #fff;
+    }
+
+    .panel-toggle {
+      width: 22px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #fff;
+      transition: transform 0.25s ease;
+    }
+
+    .control-panel.collapsed .panel-toggle {
+      transform: rotate(180deg);
+    }
+
+    .panel-body {
+      padding: 8px 0;
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+
+    .panel-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .panel-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      padding: 7px 14px;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .layer-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .layer-item input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .layer-item input[type="checkbox"]:checked {
+      border-color: transparent;
+    }
+
+    .layer-item input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: -1px;
+      left: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .layer-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .layer-label {
+      flex: 1;
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    .layer-count {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      font-weight: 500;
+      min-width: 24px;
+      text-align: right;
+    }
+
+    .zoom-warning {
+      font-size: 10px;
+      color: #fbbf24;
+      padding: 0 14px 6px;
+      display: none;
+    }
+
+    .zoom-warning.visible {
+      display: block;
+    }
+
+    /* ===== Legend ===== */
+    .legend {
+      position: fixed;
+      bottom: 24px;
+      left: 12px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.90);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: #e2e8f0;
+      font-size: 11px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      min-width: 150px;
+    }
+
+    .legend h4 {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #a5b4fc;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2.5px 0;
+    }
+
+    .legend-icon {
+      width: 14px;
+      height: 4px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-icon.circle {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-text {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* ===== Loading Overlay ===== */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2000;
+      background: rgba(15, 23, 42, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e2e8f0;
+      gap: 16px;
+      transition: opacity 0.4s;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #818cf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #a5b4fc;
+    }
+
+    /* ===== Popup Styling ===== */
+    .leaflet-popup-content-wrapper {
+      border-radius: 10px !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .popup-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
     .popup-table {
       border-collapse: collapse;
       width: 100%;
-      font-size: 13px;
-      margin-top: 4px;
+      font-size: 12px;
     }
 
     .popup-table th,
     .popup-table td {
-      border: 1px solid #ccc;
-      padding: 4px 6px;
+      border: 1px solid #e2e8f0;
+      padding: 4px 8px;
       text-align: left;
       vertical-align: top;
     }
 
     .popup-table th {
-      background: #f4f4f4;
+      background: #f1f5f9;
       font-weight: 600;
-      width: 40%;
+      color: #475569;
+      width: 35%;
+      white-space: nowrap;
+    }
+
+    .popup-table td {
+      color: #1e293b;
+    }
+
+    .popup-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .popup-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    /* ===== Toast notification ===== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 12px;
+      z-index: 1500;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      color: #fbbf24;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.35s ease;
+      max-width: 280px;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ===== Mobile Responsive ===== */
+    @media (max-width: 600px) {
+      .control-panel {
+        top: auto;
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+        min-width: unset;
+        border-radius: 12px;
+      }
+
+      .control-panel.collapsed {
+        left: auto;
+        right: 12px;
+        min-width: 140px;
+        max-width: 160px;
+      }
+
+      .panel-body {
+        max-height: 35vh;
+      }
+
+      .legend {
+        bottom: auto;
+        top: 12px;
+        left: 12px;
+        font-size: 10px;
+        padding: 8px 10px;
+      }
+
+      .toast {
+        left: 12px;
+        right: 12px;
+        bottom: 80px;
+        max-width: none;
+      }
     }
   </style>
 </head>
 
 <body>
+  <!-- Peta -->
   <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    // 1. Inisialisasi Peta dengan Optimasi & Batas Area Sapporo
-    const sapporoBounds = L.latLngBounds([42.90, 141.00], [43.25, 141.70]);
-    const map = L.map('map', {
-      preferCanvas: true,       // ⚡ Menggunakan Canvas (lebih ringan untuk data besar)
-      maxBounds: sapporoBounds, // 🔒 Kunci viewport agar tidak keluar dari Sapporo
-      minZoom: 11,
-      maxZoom: 18
-    }).setView([43.0621, 141.3544], 13);
+  <!-- Loading Overlay -->
+  <div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Memuat data Sapporo…</div>
+  </div>
 
-    // 2. Basemap OpenStreetMap
+  <!-- Control Panel -->
+  <div id="control-panel" class="control-panel">
+    <div class="panel-header" onclick="togglePanel()">
+      <h3>📍 Layer Control</h3>
+      <div class="panel-toggle">▲</div>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <!-- Layer items will be injected by JS -->
+    </div>
+    <div class="zoom-warning" id="zoom-warning">
+      ⚠ Zoom in (>13) untuk melihat Roads & Buildings
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend" id="legend"></div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // ===================================================================
+    // KONFIGURASI LAYER
+    // ===================================================================
+    const LAYER_CONFIG = {
+      amenities: {
+        label: 'Amenities',
+        color: '#f472b6',
+        icon: '🏪',
+        filter: (p) => p.amenity && !['townhall'].includes(p.amenity),
+        zoomMin: 0
+      },
+      buildings: {
+        label: 'Buildings',
+        color: '#fb923c',
+        icon: '🏢',
+        filter: (p) => p.building && !p.amenity && !p.office && !p.military,
+        zoomMin: 14 // Hanya tampil pada zoom > 13
+      },
+      nature: {
+        label: 'Nature',
+        color: '#4ade80',
+        icon: '🌿',
+        filter: (p) => p.landuse === 'military' ? false : (p.landuse != null),
+        zoomMin: 0
+      },
+      government: {
+        label: 'Government',
+        color: '#60a5fa',
+        icon: '🏛️',
+        filter: (p) => p.office === 'government' || p.government || p.amenity === 'townhall',
+        zoomMin: 0
+      },
+      points_of_interest: {
+        label: 'Points of Interest',
+        color: '#c084fc',
+        icon: '⭐',
+        filter: (p) => p.amenity === 'townhall',
+        zoomMin: 0
+      },
+      roads: {
+        label: 'Roads',
+        color: '#facc15',
+        icon: '🛣️',
+        filter: (p) => false, // Tidak ada fitur roads di data ini
+        zoomMin: 14
+      },
+      transport: {
+        label: 'Transport',
+        color: '#22d3ee',
+        icon: '🚉',
+        filter: (p) => p.government === 'transportation',
+        zoomMin: 0
+      },
+      military: {
+        label: 'Military',
+        color: '#ef4444',
+        icon: '🎖️',
+        filter: (p) => p.military || p.landuse === 'military',
+        zoomMin: 0
+      }
+    };
+
+    // ===================================================================
+    // INISIALISASI PETA
+    // ===================================================================
+    const sapporoBounds = L.latLngBounds([42.85, 140.95], [43.30, 141.75]);
+
+    const map = L.map('map', {
+      preferCanvas: true,
+      maxBounds: sapporoBounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 10,
+      maxZoom: 18,
+      zoomControl: false
+    }).setView([43.0621, 141.3544], 12);
+
+    // Zoom control di kanan bawah
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Basemap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
       maxZoom: 18
     }).addTo(map);
 
-    // 3. Fungsi Popup Dinamis (Menampilkan Seluruh Atribut dalam Tabel)
-    function onEachFeature(feature, layer) {
-      if (feature.properties) {
-        let html = '<table class="popup-table">';
-        for (let key in feature.properties) {
-          let val = feature.properties[key];
-          // Filter agar tidak menampilkan nilai null, undefined, atau objek kompleks
-          if (val !== null && val !== undefined && typeof val !== 'object') {
-            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
-          }
+    // ===================================================================
+    // STATE
+    // ===================================================================
+    const layers = {};        // key => L.layerGroup
+    const layerData = {};     // key => GeoJSON features array
+    const layerEnabled = {};  // key => boolean (checkbox state)
+    const featureCounts = {}; // key => count
+
+    // ===================================================================
+    // POPUP BUILDER
+    // ===================================================================
+    function buildPopup(properties, categoryKey) {
+      const cfg = LAYER_CONFIG[categoryKey];
+      const name = properties.name || 'Tanpa Nama';
+
+      // Tentukan "jenis" dari properties
+      let jenis = properties.amenity || properties.office || properties.military
+        || properties.government || properties.building || properties.landuse || '-';
+
+      // Badge color
+      const badgeColor = cfg ? cfg.color : '#6366f1';
+
+      let html = '';
+      html += `<div class="popup-title">${name}</div>`;
+      html += `<span class="popup-badge" style="background:${badgeColor}20;color:${badgeColor}">${cfg ? cfg.label : categoryKey}</span>`;
+      html += '<table class="popup-table">';
+      html += `<tr><th>Jenis</th><td>${jenis}</td></tr>`;
+
+      // Tambahkan atribut unik lainnya
+      const skip = new Set(['name', 'amenity', 'office', 'military', 'government', 'building', 'landuse']);
+      for (const [key, val] of Object.entries(properties)) {
+        if (skip.has(key)) continue;
+        if (val === null || val === undefined || typeof val === 'object') continue;
+        html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+      }
+
+      html += '</table>';
+      return html;
+    }
+
+    // ===================================================================
+    // KATEGORISASI FITUR
+    // ===================================================================
+    function categorizeFeature(properties) {
+      // Urutan prioritas: government > transport > military > amenities > points_of_interest > nature > buildings
+      if (LAYER_CONFIG.government.filter(properties)) return 'government';
+      if (LAYER_CONFIG.transport.filter(properties)) return 'transport';
+      if (LAYER_CONFIG.military.filter(properties)) return 'military';
+      if (LAYER_CONFIG.amenities.filter(properties)) return 'amenities';
+      if (LAYER_CONFIG.points_of_interest.filter(properties)) return 'points_of_interest';
+      if (LAYER_CONFIG.nature.filter(properties)) return 'nature';
+      if (LAYER_CONFIG.buildings.filter(properties)) return 'buildings';
+      return 'other';
+    }
+
+    // ===================================================================
+    // STYLE FITUR
+    // ===================================================================
+    function getStyle(categoryKey) {
+      const cfg = LAYER_CONFIG[categoryKey];
+      const color = cfg ? cfg.color : '#94a3b8';
+      return {
+        color: color,
+        weight: 2,
+        opacity: 0.85,
+        fillColor: color,
+        fillOpacity: 0.25
+      };
+    }
+
+    function getPointMarker(latlng, categoryKey) {
+      const cfg = LAYER_CONFIG[categoryKey];
+      const color = cfg ? cfg.color : '#94a3b8';
+      return L.circleMarker(latlng, {
+        radius: 6,
+        fillColor: color,
+        color: '#fff',
+        weight: 1.5,
+        fillOpacity: 0.9
+      });
+    }
+
+    // ===================================================================
+    // CONTROL PANEL BUILDER
+    // ===================================================================
+    function buildControlPanel() {
+      const body = document.getElementById('panel-body');
+      body.innerHTML = '';
+
+      for (const [key, cfg] of Object.entries(LAYER_CONFIG)) {
+        const count = featureCounts[key] || 0;
+        if (count === 0 && key === 'roads') {
+          // Tetap tampilkan roads walau 0 — sebagai placeholder
         }
-        html += '</table>';
-        layer.bindPopup(html, { maxWidth: 300, maxHeight: 250, autoPan: true });
+
+        const item = document.createElement('label');
+        item.className = 'layer-item';
+
+        const checked = layerEnabled[key] !== false;
+        const needsZoom = cfg.zoomMin > 0;
+
+        item.innerHTML = `
+          <input type="checkbox" id="cb-${key}" ${checked ? 'checked' : ''}
+                 style="background:${checked ? cfg.color : 'transparent'};border-color:${checked ? cfg.color : ''}"
+                 onchange="toggleLayer('${key}', this.checked, this)">
+          <span class="layer-color" style="background:${cfg.color};color:${cfg.color}"></span>
+          <span class="layer-label">${cfg.icon} ${cfg.label}</span>
+          <span class="layer-count">${count}</span>
+        `;
+        body.appendChild(item);
       }
     }
 
-    // 4. Load GeoJSON & Auto Zoom ke Data
-    fetch('data/Ks_Task_6.geojson')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        const geoLayer = L.geoJSON(data, { onEachFeature: onEachFeature }).addTo(map);
+    // ===================================================================
+    // TOGGLE FUNCTIONS
+    // ===================================================================
+    function togglePanel() {
+      document.getElementById('control-panel').classList.toggle('collapsed');
+    }
 
-        // Auto zoom & pan ke extent data yang berhasil dimuat
-        if (geoLayer.getLayers().length > 0) {
-          map.fitBounds(geoLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+    function toggleLayer(key, enabled, checkbox) {
+      layerEnabled[key] = enabled;
+
+      // Update checkbox color
+      if (checkbox) {
+        const cfg = LAYER_CONFIG[key];
+        checkbox.style.background = enabled ? cfg.color : 'transparent';
+        checkbox.style.borderColor = enabled ? cfg.color : '';
+      }
+
+      updateLayerVisibility();
+    }
+
+    function updateLayerVisibility() {
+      const zoom = map.getZoom();
+      let hasZoomRestricted = false;
+
+      for (const [key, layer] of Object.entries(layers)) {
+        const cfg = LAYER_CONFIG[key];
+        const enabled = layerEnabled[key] !== false;
+        const meetsZoom = zoom >= cfg.zoomMin;
+
+        if (enabled && meetsZoom) {
+          if (!map.hasLayer(layer)) map.addLayer(layer);
+        } else {
+          if (map.hasLayer(layer)) map.removeLayer(layer);
         }
-      })
-      .catch(err => {
-        console.error('Gagal memuat data GeoJSON:', err);
-        alert('Gagal memuat peta. Pastikan file data/Ks_Task_6.geojson tersedia dan path benar.');
-      });
+
+        if (enabled && !meetsZoom && (featureCounts[key] || 0) > 0) {
+          hasZoomRestricted = true;
+        }
+      }
+
+      // Zoom warning
+      const warning = document.getElementById('zoom-warning');
+      if (warning) {
+        warning.classList.toggle('visible', hasZoomRestricted);
+      }
+    }
+
+    // ===================================================================
+    // LEGEND BUILDER
+    // ===================================================================
+    function buildLegend() {
+      const legendEl = document.getElementById('legend');
+      let html = '<h4>Legenda</h4>';
+
+      for (const [key, cfg] of Object.entries(LAYER_CONFIG)) {
+        const count = featureCounts[key] || 0;
+        if (count === 0 && key !== 'roads') continue;
+
+        const isPolygon = key === 'buildings' || key === 'nature' || key === 'military';
+        html += `<div class="legend-item">
+          <span class="legend-icon ${isPolygon ? '' : 'circle'}"
+                style="background:${cfg.color}"></span>
+          <span class="legend-text">${cfg.icon} ${cfg.label}</span>
+        </div>`;
+      }
+
+      legendEl.innerHTML = html;
+    }
+
+    // ===================================================================
+    // TOAST
+    // ===================================================================
+    function showToast(msg, duration = 4000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), duration);
+    }
+
+    // ===================================================================
+    // LOAD DATA
+    // ===================================================================
+    async function loadData() {
+      const loading = document.getElementById('loading');
+
+      try {
+        const response = await fetch('data/Ks_Task_6.geojson');
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        const geojsonData = await response.json();
+
+        // Inisialisasi layer groups
+        for (const key of Object.keys(LAYER_CONFIG)) {
+          layers[key] = L.layerGroup();
+          layerData[key] = [];
+          featureCounts[key] = 0;
+          layerEnabled[key] = true;
+        }
+
+        // Kategorisasi dan distribusi fitur
+        if (geojsonData.features && geojsonData.features.length > 0) {
+          for (const feature of geojsonData.features) {
+            const props = feature.properties || {};
+            const category = categorizeFeature(props);
+
+            if (!layers[category]) continue; // skip 'other' jika tidak ada config
+
+            featureCounts[category] = (featureCounts[category] || 0) + 1;
+
+            const geoLayer = L.geoJSON(feature, {
+              style: () => getStyle(category),
+              pointToLayer: (f, latlng) => getPointMarker(latlng, category),
+              onEachFeature: (f, layer) => {
+                layer.bindPopup(buildPopup(f.properties, category), {
+                  maxWidth: 320,
+                  maxHeight: 300,
+                  autoPan: true
+                });
+              }
+            });
+
+            layers[category].addLayer(geoLayer);
+          }
+        }
+
+        // Build UI
+        buildControlPanel();
+        buildLegend();
+
+        // Add layers to map (sesuai zoom)
+        updateLayerVisibility();
+
+        // Fit bounds ke data
+        const allFeatures = L.geoJSON(geojsonData);
+        if (allFeatures.getLayers().length > 0) {
+          map.fitBounds(allFeatures.getBounds(), { padding: [50, 50], maxZoom: 13 });
+        }
+
+        // Sembunyikan loading
+        loading.classList.add('hidden');
+        setTimeout(() => loading.remove(), 500);
+
+        // Info
+        const totalFeatures = geojsonData.features ? geojsonData.features.length : 0;
+        showToast(`✅ ${totalFeatures} fitur berhasil dimuat dari ${Object.keys(featureCounts).filter(k => featureCounts[k] > 0).length} kategori`);
+
+        console.log('Data berhasil dimuat:', featureCounts);
+
+      } catch (error) {
+        console.error('Gagal memuat GeoJSON:', error);
+        loading.querySelector('.loading-text').textContent = `❌ Gagal memuat data: ${error.message}`;
+        loading.querySelector('.spinner').style.display = 'none';
+      }
+    }
+
+    // ===================================================================
+    // EVENT LISTENERS
+    // ===================================================================
+    map.on('zoomend', updateLayerVisibility);
+
+    // ===================================================================
+    // MULAI
+    // ===================================================================
+    loadData();
   </script>
 </body>
 
