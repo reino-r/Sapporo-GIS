@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebGIS Sapporo</title>
+  <title>WebGIS Sapporo - Fasilitas Publik & Transportasi</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * {
@@ -49,29 +49,45 @@
     /* Legend & Info Panel */
     .info-panel {
       background: white;
-      padding: 10px 12px;
+      padding: 12px;
       border-radius: 6px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.6;
       color: #333;
+      min-width: 200px;
     }
 
-    .legend i {
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+    }
+
+    .legend-color {
       display: inline-block;
-      width: 14px;
-      height: 14px;
-      margin-right: 6px;
-      opacity: 0.9;
-      border: 1px solid #ccc;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border: 1px solid #999;
       border-radius: 2px;
+      flex-shrink: 0;
     }
 
     .active-list {
-      margin-top: 6px;
-      padding-top: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid #eee;
       font-weight: 500;
+    }
+
+    /* Boundary Style */
+    .city-boundary {
+      fill: none;
+      stroke: #ff0000;
+      stroke-width: 2;
+      stroke-dasharray: 5, 5;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -84,46 +100,108 @@
     // 1. Inisialisasi Peta dengan Batas Area Sapporo
     const sapporoBounds = L.latLngBounds([42.90, 141.00], [43.25, 141.70]);
     const map = L.map('map', {
-      preferCanvas: true,       // ⚡ Performa lebih baik untuk data besar
-      maxBounds: sapporoBounds, // 🔒 Kunci viewport agar tidak keluar Sapporo
+      preferCanvas: true,       // ⚡ Performa lebih baik
+      maxBounds: sapporoBounds, // 🔒 Kunci viewport
+      maxBoundsViscosity: 1.0,  // Prevent bouncing
       minZoom: 11,
       maxZoom: 18
     }).setView([43.0621, 141.3544], 13);
 
-    // 2. Basemap OpenStreetMap
+    // 2. Basemap OpenStreetMap (Bahasa Inggris)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 18
     }).addTo(map);
 
-    // 3. Style untuk setiap kategori
+    // 3. Tambahkan Batas Kota Sapporo (Rectangle Boundary)
+    const boundaryRect = L.rectangle(sapporoBounds, {
+      color: "#ff0000",
+      weight: 3,
+      opacity: 0.8,
+      dashArray: '10, 10',
+      fill: false,
+      interactive: false
+    }).addTo(map);
+
+    // Tambahkan label batas
+    const boundaryLabel = L.marker(sapporoBounds.getNorthEast(), {
+      icon: L.divIcon({
+        className: 'custom-div-icon',
+        html: "<div style='background-color:#ff0000;color:white;padding:4px 8px;border-radius:4px;font-weight:bold;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.3);'>Batas Kota Sapporo</div>",
+        iconSize: [150, 30],
+        iconAnchor: [75, 15]
+      })
+    }).addTo(map);
+
+    // 4. Style untuk setiap kategori dengan warna yang jelas
     const styles = {
-      transportasi: { color: '#3388ff', weight: 2, opacity: 0.8, fillOpacity: 0.3 },
-      pendidikan: { color: '#2ca02c', weight: 2, opacity: 0.9, fillOpacity: 0.4 },
-      kesehatan: { color: '#ff7f0e', weight: 2, opacity: 0.9, fillOpacity: 0.4 },
-      publik: { color: '#9467bd', weight: 2, opacity: 0.8, fillOpacity: 0.3 }
+      transportasi: {
+        color: '#0066cc',     // Biru tua
+        weight: 3,
+        opacity: 0.9,
+        fillColor: '#0066cc',
+        fillOpacity: 0.4,
+        radius: 6
+      },
+      pendidikan: {
+        color: '#00aa00',     // Hijau
+        weight: 2,
+        opacity: 0.9,
+        fillColor: '#00aa00',
+        fillOpacity: 0.5,
+        radius: 6
+      },
+      kesehatan: {
+        color: '#cc3300',     // Merah
+        weight: 2,
+        opacity: 0.9,
+        fillColor: '#cc3300',
+        fillOpacity: 0.5,
+        radius: 6
+      },
+      publik: {
+        color: '#9933cc',     // Ungu
+        weight: 2,
+        opacity: 0.8,
+        fillColor: '#9933cc',
+        fillOpacity: 0.4,
+        radius: 5
+      }
     };
 
-    // 4. Fungsi Popup Dinamis
+    // 5. Fungsi Popup Dinamis
     function onEachFeature(feature, layer) {
       if (feature.properties) {
         let html = '<table class="popup-table">';
+        const priorityFields = ['name', 'name:en', 'amenity', 'highway', 'railway', 'building', 'operator'];
+
+        // Tampilkan field prioritas dulu
+        priorityFields.forEach(key => {
+          if (feature.properties[key]) {
+            html += `<tr><th>${key}</th><td>${feature.properties[key]}</td></tr>`;
+          }
+        });
+
+        // Tampilkan field lainnya
         for (let key in feature.properties) {
-          const val = feature.properties[key];
-          if (val !== null && val !== undefined && typeof val !== 'object') {
-            html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+          if (!priorityFields.includes(key)) {
+            const val = feature.properties[key];
+            if (val !== null && val !== undefined && typeof val !== 'object' && String(val).length < 100) {
+              html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+            }
           }
         }
         html += '</table>';
-        layer.bindPopup(html, { maxWidth: 300, maxHeight: 250, autoPan: true });
+        layer.bindPopup(html, { maxWidth: 320, maxHeight: 280, autoPan: true });
       }
     }
 
-    // 5. Load & Kategorikan GeoJSON
+    // 6. Load & Kategorikan GeoJSON
     fetch('data/Ks_Task_6.geojson')
       .then(res => res.ok ? res.json() : Promise.reject('File tidak ditemukan'))
       .then(data => {
         const groups = { transportasi: [], pendidikan: [], kesehatan: [], publik: [] };
+        let transportCount = 0, educationCount = 0, healthCount = 0, publicCount = 0;
 
         // Kategorikan fitur berdasarkan properties
         data.features.forEach(f => {
@@ -131,25 +209,51 @@
           const amenity = String(p.amenity || '').toLowerCase();
           const highway = String(p.highway || '').toLowerCase();
           const railway = String(p.railway || '').toLowerCase();
+          const publicTrans = String(p.public_transport || '').toLowerCase();
+          const route = String(p.route || '').toLowerCase();
+          const building = String(p.building || '').toLowerCase();
 
-          // Transportasi: jalan, rel, stasiun
-          if (highway || railway || p.public_transport ||
-            ['train_station', 'bus_station', 'subway_entrance'].includes(amenity)) {
+          let categorized = false;
+
+          // Transportasi: jalan, rel, stasiun, halte, dll
+          if (highway || railway || route || publicTrans ||
+            ['train_station', 'bus_station', 'subway_entrance', 'platform', 'stop'].includes(amenity) ||
+            ['yes', 'station', 'stop'].includes(publicTrans)) {
             groups.transportasi.push(f);
+            transportCount++;
+            categorized = true;
           }
-          // Pendidikan: school, university, college, kindergarten
-          else if (['school', 'university', 'college', 'kindergarten'].includes(amenity)) {
+          // Pendidikan
+          else if (['school', 'university', 'college', 'kindergarten', 'library'].includes(amenity)) {
             groups.pendidikan.push(f);
+            educationCount++;
+            categorized = true;
           }
-          // Kesehatan: hospital, clinic, doctors, pharmacy
-          else if (['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist'].includes(amenity)) {
+          // Kesehatan
+          else if (['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist', 'veterinary'].includes(amenity)) {
             groups.kesehatan.push(f);
+            healthCount++;
+            categorized = true;
           }
-          // Publik: library, community centre, place of worship, dll
-          else {
+          // Publik: semua yang tersisa
+          else if (amenity || building || p.office || p.shop || p.tourism) {
             groups.publik.push(f);
+            publicCount++;
+            categorized = true;
+          }
+
+          // Jika tidak terkategori, masukkan ke publik
+          if (!categorized && (Object.keys(p).length > 0)) {
+            groups.publik.push(f);
+            publicCount++;
           }
         });
+
+        console.log('Jumlah fitur per kategori:');
+        console.log('Transportasi:', transportCount);
+        console.log('Pendidikan:', educationCount);
+        console.log('Kesehatan:', healthCount);
+        console.log('Publik:', publicCount);
 
         // Buat Layer GeoJSON per kategori
         const layers = {};
@@ -160,10 +264,20 @@
           publik: '🏛️ Fasilitas Publik'
         };
 
+        const layerInfo = {
+          transportasi: `${transportCount} fitur`,
+          pendidikan: `${educationCount} fitur`,
+          kesehatan: `${healthCount} fitur`,
+          publik: `${publicCount} fitur`
+        };
+
         Object.keys(groups).forEach(key => {
           if (groups[key].length > 0) {
             layers[key] = L.geoJSON(groups[key], {
               style: styles[key],
+              pointToLayer: function (feature, latlng) {
+                return L.circleMarker(latlng, styles[key]);
+              },
               onEachFeature: onEachFeature
             }).addTo(map);
           }
@@ -173,39 +287,54 @@
         const allLayers = Object.values(layers);
         if (allLayers.length > 0) {
           map.fitBounds(L.featureGroup(allLayers).getBounds(), {
-            padding: [50, 50],
+            padding: [60, 60],
             maxZoom: 15
           });
         }
 
-        // 6. Filter / Layer Control (Selalu Terbuka)
+        // 7. Filter / Layer Control (Selalu Terbuka)
         const overlays = {};
         Object.keys(layers).forEach(key => {
           overlays[layerNames[key]] = layers[key];
         });
 
         L.control.layers(null, overlays, {
-          collapsed: false,  // Selalu terbuka sebagai panel filter
+          collapsed: false,
           position: 'topright'
         }).addTo(map);
 
-        // 7. Legenda & Indikator Layer Aktif di Pojok Kanan Bawah
+        // 8. Legenda Lengkap dengan Warna & Jumlah Fitur
         const infoControl = L.control({ position: 'bottomright' });
         infoControl.onAdd = function () {
           const div = L.DomUtil.create('div', 'info-panel');
           div.innerHTML = `
-                        <strong>Legenda</strong><br>
-                        <i style="background:#3388ff"></i> Transportasi<br>
-                        <i style="background:#2ca02c"></i> Pendidikan<br>
-                        <i style="background:#ff7f0e"></i> Kesehatan<br>
-                        <i style="background:#9467bd"></i> Fasilitas Publik
+                        <strong style="font-size:13px;margin-bottom:8px;display:block;">LEGENDA</strong>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background:#0066cc;"></span>
+                            <span>Transportasi<br><small style="color:#666">${layerInfo.transportasi}</small></span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background:#00aa00;"></span>
+                            <span>Pendidikan<br><small style="color:#666">${layerInfo.pendidikan}</small></span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background:#cc3300;"></span>
+                            <span>Kesehatan<br><small style="color:#666">${layerInfo.kesehatan}</small></span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background:#9933cc;"></span>
+                            <span>Fasilitas Publik<br><small style="color:#666">${layerInfo.publik}</small></span>
+                        </div>
+                        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd;">
+                            <strong style="color:#ff0000;">📍 Batas Kota Sapporo</strong>
+                        </div>
                         <div class="active-list" id="active-layers">Layer Aktif: Semua</div>
                     `;
           return div;
         };
         infoControl.addTo(map);
 
-        // Update teks layer aktif saat toggle
+        // Update teks layer aktif
         const updateActiveLayers = () => {
           const active = Object.keys(overlays).filter(name => {
             const layerKey = Object.keys(layers).find(k => layerNames[k] === name);
@@ -216,7 +345,7 @@
         };
 
         map.on('overlayadd overlayremove', updateActiveLayers);
-        updateActiveLayers(); // Initial call
+        updateActiveLayers();
 
       })
       .catch(err => {
