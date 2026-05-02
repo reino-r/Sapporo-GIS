@@ -108,9 +108,8 @@
     }).setView([43.0621, 141.3544], 13);
 
     // 2. Basemap OpenStreetMap (Bahasa Inggris)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 18
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China, Esri Thailand, TomTom'
     }).addTo(map);
 
     // 3. Tambahkan Batas Kota Sapporo (Rectangle Boundary)
