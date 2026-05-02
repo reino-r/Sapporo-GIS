@@ -81,13 +81,24 @@
       font-weight: 500;
     }
 
-    /* Boundary Style */
-    .city-boundary {
-      fill: none;
-      stroke: #ff0000;
-      stroke-width: 2;
-      stroke-dasharray: 5, 5;
-      opacity: 0.7;
+    /* Custom Button Style */
+    .leaflet-control-custom {
+      background: #fff;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+      color: #333;
+      font-size: 18px;
+      height: 34px;
+      width: 34px;
+      line-height: 34px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .leaflet-control-custom:hover {
+      background: #f4f4f4;
     }
   </style>
 </head>
@@ -97,96 +108,66 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // 1. Inisialisasi Peta dengan Batas Area Sapporo
+    // 1. Inisialisasi Peta (Zoom & Pan Lebih Bebas)
+    const sapporoCenter = [43.0621, 141.3544];
     const sapporoBounds = L.latLngBounds([42.90, 141.00], [43.25, 141.70]);
-    const map = L.map('map', {
-      preferCanvas: true,       // ⚡ Performa lebih baik
-      maxBounds: sapporoBounds, // 🔒 Kunci viewport
-      maxBoundsViscosity: 1.0,  // Prevent bouncing
-      minZoom: 11,
-      maxZoom: 18
-    }).setView([43.0621, 141.3544], 13);
 
-    // 2. Basemap OpenStreetMap (Bahasa Inggris)
+    const map = L.map('map', {
+      preferCanvas: true,
+      minZoom: 3,    // Bisa zoom out sampai peta dunia
+      maxZoom: 19,   // Bisa zoom in sangat dekat
+      zoomControl: true
+    }).setView(sapporoCenter, 13);
+
+    // 2. Basemap Esri (Bahasa Inggris/Latin)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China, Esri Thailand, TomTom'
+      attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI',
+      maxZoom: 19
     }).addTo(map);
 
-    // 3. Tambahkan Batas Kota Sapporo (Rectangle Boundary)
-    const boundaryRect = L.rectangle(sapporoBounds, {
+    // 3. Batas Kota Sapporo (Visual Saja, Tidak Mengunci Peta)
+    L.rectangle(sapporoBounds, {
       color: "#ff0000",
       weight: 3,
-      opacity: 0.8,
-      dashArray: '10, 10',
+      opacity: 0.7,
+      dashArray: '8, 8',
       fill: false,
-      interactive: false
+      interactive: false // ✅ Penting: agar user bisa pan melintasi batas
     }).addTo(map);
 
-    // Tambahkan label batas
-    const boundaryLabel = L.marker(sapporoBounds.getNorthEast(), {
-      icon: L.divIcon({
-        className: 'custom-div-icon',
-        html: "<div style='background-color:#ff0000;color:white;padding:4px 8px;border-radius:4px;font-weight:bold;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.3);'>Batas Kota Sapporo</div>",
-        iconSize: [150, 30],
-        iconAnchor: [75, 15]
-      })
-    }).addTo(map);
+    // 4. Tombol "Kembali ke Sapporo"
+    const backBtn = L.control({ position: 'topleft' });
+    backBtn.onAdd = function () {
+      const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+      div.innerHTML = '🏙️';
+      div.title = 'Kembali ke Pusat Sapporo';
+      div.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        map.setView(sapporoCenter, 13, { animate: true });
+      };
+      return div;
+    };
+    backBtn.addTo(map);
 
-    // 4. Style untuk setiap kategori dengan warna yang jelas
+    // 5. Style & Popup
     const styles = {
-      transportasi: {
-        color: '#0066cc',     // Biru tua
-        weight: 3,
-        opacity: 0.9,
-        fillColor: '#0066cc',
-        fillOpacity: 0.4,
-        radius: 6
-      },
-      pendidikan: {
-        color: '#00aa00',     // Hijau
-        weight: 2,
-        opacity: 0.9,
-        fillColor: '#00aa00',
-        fillOpacity: 0.5,
-        radius: 6
-      },
-      kesehatan: {
-        color: '#cc3300',     // Merah
-        weight: 2,
-        opacity: 0.9,
-        fillColor: '#cc3300',
-        fillOpacity: 0.5,
-        radius: 6
-      },
-      publik: {
-        color: '#9933cc',     // Ungu
-        weight: 2,
-        opacity: 0.8,
-        fillColor: '#9933cc',
-        fillOpacity: 0.4,
-        radius: 5
-      }
+      transportasi: { color: '#0066cc', weight: 3, opacity: 0.9, fillColor: '#0066cc', fillOpacity: 0.4, radius: 6 },
+      pendidikan: { color: '#00aa00', weight: 2, opacity: 0.9, fillColor: '#00aa00', fillOpacity: 0.5, radius: 6 },
+      kesehatan: { color: '#cc3300', weight: 2, opacity: 0.9, fillColor: '#cc3300', fillOpacity: 0.5, radius: 6 },
+      publik: { color: '#9933cc', weight: 2, opacity: 0.8, fillColor: '#9933cc', fillOpacity: 0.4, radius: 5 }
     };
 
-    // 5. Fungsi Popup Dinamis
     function onEachFeature(feature, layer) {
       if (feature.properties) {
         let html = '<table class="popup-table">';
-        const priorityFields = ['name', 'name:en', 'amenity', 'highway', 'railway', 'building', 'operator'];
-
-        // Tampilkan field prioritas dulu
-        priorityFields.forEach(key => {
-          if (feature.properties[key]) {
-            html += `<tr><th>${key}</th><td>${feature.properties[key]}</td></tr>`;
-          }
-        });
-
-        // Tampilkan field lainnya
-        for (let key in feature.properties) {
-          if (!priorityFields.includes(key)) {
-            const val = feature.properties[key];
-            if (val !== null && val !== undefined && typeof val !== 'object' && String(val).length < 100) {
-              html += `<tr><th>${key}</th><td>${val}</td></tr>`;
+        const priority = ['name', 'name:en', 'amenity', 'highway', 'railway', 'building', 'operator'];
+        priority.forEach(k => { if (feature.properties[k]) html += `<tr><th>${k}</th><td>${feature.properties[k]}</td></tr>`; });
+        for (let k in feature.properties) {
+          if (!priority.includes(k)) {
+            const v = feature.properties[k];
+            if (v !== null && v !== undefined && typeof v !== 'object' && String(v).length < 80) {
+              html += `<tr><th>${k}</th><td>${v}</td></tr>`;
             }
           }
         }
@@ -195,161 +176,86 @@
       }
     }
 
-    // 6. Load & Kategorikan GeoJSON
+    // 6. Load & Kategorikan Data
     fetch('data/Ks_Task_6.geojson')
       .then(res => res.ok ? res.json() : Promise.reject('File tidak ditemukan'))
       .then(data => {
         const groups = { transportasi: [], pendidikan: [], kesehatan: [], publik: [] };
-        let transportCount = 0, educationCount = 0, healthCount = 0, publicCount = 0;
+        const counts = { transportasi: 0, pendidikan: 0, kesehatan: 0, publik: 0 };
 
-        // Kategorikan fitur berdasarkan properties
         data.features.forEach(f => {
           const p = f.properties || {};
           const amenity = String(p.amenity || '').toLowerCase();
           const highway = String(p.highway || '').toLowerCase();
           const railway = String(p.railway || '').toLowerCase();
-          const publicTrans = String(p.public_transport || '').toLowerCase();
+          const pt = String(p.public_transport || '').toLowerCase();
           const route = String(p.route || '').toLowerCase();
-          const building = String(p.building || '').toLowerCase();
 
-          let categorized = false;
-
-          // Transportasi: jalan, rel, stasiun, halte, dll
-          if (highway || railway || route || publicTrans ||
-            ['train_station', 'bus_station', 'subway_entrance', 'platform', 'stop'].includes(amenity) ||
-            ['yes', 'station', 'stop'].includes(publicTrans)) {
-            groups.transportasi.push(f);
-            transportCount++;
-            categorized = true;
-          }
-          // Pendidikan
-          else if (['school', 'university', 'college', 'kindergarten', 'library'].includes(amenity)) {
-            groups.pendidikan.push(f);
-            educationCount++;
-            categorized = true;
-          }
-          // Kesehatan
-          else if (['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist', 'veterinary'].includes(amenity)) {
-            groups.kesehatan.push(f);
-            healthCount++;
-            categorized = true;
-          }
-          // Publik: semua yang tersisa
-          else if (amenity || building || p.office || p.shop || p.tourism) {
-            groups.publik.push(f);
-            publicCount++;
-            categorized = true;
-          }
-
-          // Jika tidak terkategori, masukkan ke publik
-          if (!categorized && (Object.keys(p).length > 0)) {
-            groups.publik.push(f);
-            publicCount++;
+          if (highway || railway || route || pt || ['train_station', 'bus_station', 'subway_entrance', 'platform', 'stop'].includes(amenity) || ['yes', 'station', 'stop'].includes(pt)) {
+            groups.transportasi.push(f); counts.transportasi++;
+          } else if (['school', 'university', 'college', 'kindergarten', 'library'].includes(amenity)) {
+            groups.pendidikan.push(f); counts.pendidikan++;
+          } else if (['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist', 'veterinary'].includes(amenity)) {
+            groups.kesehatan.push(f); counts.kesehatan++;
+          } else if (amenity || p.building || p.office || p.shop || p.tourism) {
+            groups.publik.push(f); counts.publik++;
+          } else {
+            groups.publik.push(f); counts.publik++;
           }
         });
 
-        console.log('Jumlah fitur per kategori:');
-        console.log('Transportasi:', transportCount);
-        console.log('Pendidikan:', educationCount);
-        console.log('Kesehatan:', healthCount);
-        console.log('Publik:', publicCount);
-
-        // Buat Layer GeoJSON per kategori
         const layers = {};
-        const layerNames = {
-          transportasi: '🚗 Transportasi',
-          pendidikan: '🎓 Pendidikan',
-          kesehatan: '🏥 Kesehatan',
-          publik: '🏛️ Fasilitas Publik'
-        };
-
-        const layerInfo = {
-          transportasi: `${transportCount} fitur`,
-          pendidikan: `${educationCount} fitur`,
-          kesehatan: `${healthCount} fitur`,
-          publik: `${publicCount} fitur`
-        };
+        const layerNames = { transportasi: '🚗 Transportasi', pendidikan: '🎓 Pendidikan', kesehatan: '🏥 Kesehatan', publik: '🏛️ Fasilitas Publik' };
 
         Object.keys(groups).forEach(key => {
           if (groups[key].length > 0) {
             layers[key] = L.geoJSON(groups[key], {
               style: styles[key],
-              pointToLayer: function (feature, latlng) {
-                return L.circleMarker(latlng, styles[key]);
-              },
+              pointToLayer: (feat, latlng) => L.circleMarker(latlng, styles[key]),
               onEachFeature: onEachFeature
             }).addTo(map);
           }
         });
 
-        // Auto zoom ke semua data
+        // Auto zoom ke data saat pertama load
         const allLayers = Object.values(layers);
-        if (allLayers.length > 0) {
-          map.fitBounds(L.featureGroup(allLayers).getBounds(), {
-            padding: [60, 60],
-            maxZoom: 15
-          });
-        }
+        if (allLayers.length > 0) map.fitBounds(L.featureGroup(allLayers).getBounds(), { padding: [50, 50], maxZoom: 15 });
 
-        // 7. Filter / Layer Control (Selalu Terbuka)
+        // 7. Filter Control
         const overlays = {};
-        Object.keys(layers).forEach(key => {
-          overlays[layerNames[key]] = layers[key];
-        });
+        Object.keys(layers).forEach(k => overlays[layerNames[k]] = layers[k]);
+        L.control.layers(null, overlays, { collapsed: false, position: 'topright' }).addTo(map);
 
-        L.control.layers(null, overlays, {
-          collapsed: false,
-          position: 'topright'
-        }).addTo(map);
-
-        // 8. Legenda Lengkap dengan Warna & Jumlah Fitur
-        const infoControl = L.control({ position: 'bottomright' });
-        infoControl.onAdd = function () {
+        // 8. Legenda
+        const legendCtrl = L.control({ position: 'bottomright' });
+        legendCtrl.onAdd = function () {
           const div = L.DomUtil.create('div', 'info-panel');
           div.innerHTML = `
-                        <strong style="font-size:13px;margin-bottom:8px;display:block;">LEGENDA</strong>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background:#0066cc;"></span>
-                            <span>Transportasi<br><small style="color:#666">${layerInfo.transportasi}</small></span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background:#00aa00;"></span>
-                            <span>Pendidikan<br><small style="color:#666">${layerInfo.pendidikan}</small></span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background:#cc3300;"></span>
-                            <span>Kesehatan<br><small style="color:#666">${layerInfo.kesehatan}</small></span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background:#9933cc;"></span>
-                            <span>Fasilitas Publik<br><small style="color:#666">${layerInfo.publik}</small></span>
-                        </div>
-                        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd;">
-                            <strong style="color:#ff0000;">📍 Batas Kota Sapporo</strong>
-                        </div>
+                        <strong style="font-size:13px;margin-bottom:6px;display:block;">LEGENDA</strong>
+                        <div class="legend-item"><span class="legend-color" style="background:#0066cc"></span><span>Transportasi<br><small style="color:#666">${counts.transportasi} fitur</small></span></div>
+                        <div class="legend-item"><span class="legend-color" style="background:#00aa00"></span><span>Pendidikan<br><small style="color:#666">${counts.pendidikan} fitur</small></span></div>
+                        <div class="legend-item"><span class="legend-color" style="background:#cc3300"></span><span>Kesehatan<br><small style="color:#666">${counts.kesehatan} fitur</small></span></div>
+                        <div class="legend-item"><span class="legend-color" style="background:#9933cc"></span><span>Fasilitas Publik<br><small style="color:#666">${counts.publik} fitur</small></span></div>
+                        <div style="margin-top:6px;padding-top:6px;border-top:1px solid #ddd;color:#ff0000;font-weight:500;">📍 Batas Kota Sapporo</div>
                         <div class="active-list" id="active-layers">Layer Aktif: Semua</div>
                     `;
           return div;
         };
-        infoControl.addTo(map);
+        legendCtrl.addTo(map);
 
-        // Update teks layer aktif
-        const updateActiveLayers = () => {
-          const active = Object.keys(overlays).filter(name => {
-            const layerKey = Object.keys(layers).find(k => layerNames[k] === name);
-            return layerKey && map.hasLayer(layers[layerKey]);
+        const updateActive = () => {
+          const active = Object.keys(overlays).filter(n => {
+            const k = Object.keys(layers).find(lk => layerNames[lk] === n);
+            return k && map.hasLayer(layers[k]);
           });
-          const activeText = active.length > 0 ? active.join(', ') : 'Tidak ada';
-          document.getElementById('active-layers').textContent = `Layer Aktif: ${activeText}`;
+          document.getElementById('active-layers').textContent = `Layer Aktif: ${active.length ? active.join(', ') : 'Tidak ada'}`;
         };
-
-        map.on('overlayadd overlayremove', updateActiveLayers);
-        updateActiveLayers();
-
+        map.on('overlayadd overlayremove', updateActive);
+        updateActive();
       })
       .catch(err => {
-        console.error('Error:', err);
-        alert('⚠️ Gagal memuat data GeoJSON.\n\nPastikan:\n1. File ada di folder data/Ks_Task_6.geojson\n2. Ukuran file < 50 MB\n3. Format file valid GeoJSON');
+        console.error(err);
+        alert('⚠️ Gagal memuat data.\nPastikan file ada di: data/Ks_Task_6.geojson\nUkuran ideal: < 50 MB');
       });
   </script>
 </body>
