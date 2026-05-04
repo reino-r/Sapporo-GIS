@@ -296,16 +296,30 @@
         legendCtrl.onAdd = function () {
           const div = L.DomUtil.create('div', 'info-panel');
           div.innerHTML = `
-                    <div class="legend-header">LEGENDA</div>
-                    <div class="legend-items">
-                        <div class="legend-item"><span class="legend-color" style="background:#0066cc"></span><span>Transportasi<br><small style="color:#666">${counts.transportasi} fitur</small></span></div>
-                        <div class="legend-item"><span class="legend-color" style="background:#00aa00"></span><span>Pendidikan<br><small style="color:#666">${counts.pendidikan} fitur</small></span></div>
-                        <div class="legend-item"><span class="legend-color" style="background:#cc3300"></span><span>Kesehatan<br><small style="color:#666">${counts.kesehatan} fitur</small></span></div>
-                        <div class="legend-item"><span class="legend-color" style="background:#9933cc"></span><span>Fasilitas Publik<br><small style="color:#666">${counts.publik} fitur</small></span></div>
-                        <div class="legend-item"><span class="legend-dashed"></span><span>Batas Kota Sapporo (Presisi)</span></div>
+                <div class="legend-header">LEGENDA</div>
+                <div class="legend-items">
+                    <!-- Ganti kata "fitur" menjadi "objek" di bawah ini -->
+                    
+                    <div class="legend-item"><span class="legend-color" style="background:#0066cc"></span>
+                        <span>Transportasi<br><small style="color:#666">${counts.transportasi} objek</small></span>
                     </div>
-                    <div class="active-container" id="active-layers">Layer Aktif: Semua</div>
-                `;
+                    
+                    <div class="legend-item"><span class="legend-color" style="background:#00aa00"></span>
+                        <span>Pendidikan<br><small style="color:#666">${counts.pendidikan} objek</small></span>
+                    </div>
+                    
+                    <div class="legend-item"><span class="legend-color" style="background:#cc3300"></span>
+                        <span>Kesehatan<br><small style="color:#666">${counts.kesehatan} objek</small></span>
+                    </div>
+                    
+                    <div class="legend-item"><span class="legend-color" style="background:#9933cc"></span>
+                        <span>Fasilitas Publik<br><small style="color:#666">${counts.publik} objek</small></span>
+                    </div>
+                    
+                    <div class="legend-item"><span class="legend-dashed"></span><span>Batas Kota Sapporo (Presisi)</span></div>
+                </div>
+                <div class="active-container" id="active-layers">Layer Aktif: Semua</div>
+            `;
           return div;
         };
         legendCtrl.addTo(map);
