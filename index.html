@@ -46,59 +46,72 @@
       width: 35%;
     }
 
-    /* Legend Panel (Ukuran Tetap & Ruang Aktif di Bawah) */
+    /* LEGENDA: Ukuran Tetap & Layout Flex */
     .info-panel {
-      background: white;
+      background: #fff;
       padding: 12px;
       border-radius: 6px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.4;
       color: #333;
-      min-width: 230px;
-      height: 340px;
-      /* Ukuran kotak tetap */
+      width: 250px;
+      /* LEBAR TETAP */
+      height: 320px;
+      /* TINGGI TETAP */
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
 
-    .legend-title {
-      font-size: 13px;
+    .legend-header {
       font-weight: 700;
+      font-size: 13px;
       margin-bottom: 8px;
-      display: block;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+    }
+
+    .legend-items {
+      flex: 1;
+      /* Mengisi ruang sisa */
+      overflow-y: auto;
     }
 
     .legend-item {
       display: flex;
-      align-items: center;
-      margin: 6px 0;
+      align-items: flex-start;
+      margin: 5px 0;
     }
 
     .legend-color {
-      display: inline-block;
       width: 16px;
       height: 16px;
       margin-right: 8px;
-      border: 1px solid #999;
+      border: 1px solid #bbb;
       border-radius: 2px;
       flex-shrink: 0;
+      margin-top: 2px;
     }
 
     .legend-dashed {
       width: 16px;
       height: 0;
-      border-top: 3px dashed #ff0000;
+      border-top: 2px dashed #ff0000;
       margin-right: 8px;
       flex-shrink: 0;
+      margin-top: 4px;
     }
 
-    .active-list {
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
+    /* Ruang khusus di dalam kotak untuk status layer aktif */
+    .active-container {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #ddd;
       font-weight: 500;
+      min-height: 36px;
+      /* Ruang tetap disediakan */
+      display: flex;
+      align-items: center;
     }
   </style>
 </head>
@@ -188,7 +201,7 @@
         const layerNames = {
           transportasi: '🚗 Transportasi',
           pendidikan: '🎓 Pendidikan',
-          kesehatan: '🏥 Kesehatan', // Ikon sudah eksplisit
+          kesehatan: '🏥 Kesehatan', // Ikon eksplisit di samping checkbox
           publik: '️ Fasilitas Publik'
         };
 
@@ -211,20 +224,20 @@
         Object.keys(layers).forEach(k => overlays[layerNames[k]] = layers[k]);
         L.control.layers(null, overlays, { collapsed: false, position: 'topright' }).addTo(map);
 
-        // 6. Legenda (Ukuran Tetap + Garis Putus-Putus)
+        // 6. Legenda (Ukuran Fixed + Ruang Aktif di Dalam)
         const legendCtrl = L.control({ position: 'bottomright' });
         legendCtrl.onAdd = function () {
           const div = L.DomUtil.create('div', 'info-panel');
           div.innerHTML = `
-                    <div>
-                        <span class="legend-title">LEGENDA</span>
+                    <div class="legend-header">LEGENDA</div>
+                    <div class="legend-items">
                         <div class="legend-item"><span class="legend-color" style="background:#0066cc"></span><span>Transportasi<br><small style="color:#666">${counts.transportasi} fitur</small></span></div>
                         <div class="legend-item"><span class="legend-color" style="background:#00aa00"></span><span>Pendidikan<br><small style="color:#666">${counts.pendidikan} fitur</small></span></div>
                         <div class="legend-item"><span class="legend-color" style="background:#cc3300"></span><span>Kesehatan<br><small style="color:#666">${counts.kesehatan} fitur</small></span></div>
                         <div class="legend-item"><span class="legend-color" style="background:#9933cc"></span><span>Fasilitas Publik<br><small style="color:#666">${counts.publik} fitur</small></span></div>
                         <div class="legend-item"><span class="legend-dashed"></span><span>Batas Kota Sapporo (Presisi)</span></div>
                     </div>
-                    <div class="active-list" id="active-layers">Layer Aktif: Semua</div>
+                    <div class="active-container" id="active-layers">Layer Aktif: Semua</div>
                 `;
           return div;
         };
